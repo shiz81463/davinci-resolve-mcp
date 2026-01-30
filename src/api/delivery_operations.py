@@ -37,10 +37,11 @@ def get_render_presets(resolve) -> List[Dict[str, Any]]:
         logger.info(f"Switching from {page} page to deliver page")
         resolve.OpenPage("deliver")
     
-    render_settings = current_project.GetRenderSettings()
-    if not render_settings:
-        logger.error("Failed to get render settings")
-        return {"error": "Failed to get render settings"}
+    # Use our helper function to ensure render settings are initialized
+    success, render_settings, message = ensure_render_settings(resolve, current_project)
+    if not success or not render_settings:
+        logger.error(f"Failed to initialize render settings: {message}")
+        return {"error": message}
     
     presets = []
     

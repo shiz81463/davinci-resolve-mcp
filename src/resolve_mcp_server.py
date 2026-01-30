@@ -687,17 +687,53 @@ def list_media_pool_clips() -> List[Dict[str, Any]]:
     if not root_folder:
         return [{"error": "Failed to get root folder"}]
     
-    clips = root_folder.GetClipList()
-    if not clips:
-        return [{"info": "No clips found in the root folder"}]
+    # Recursive function to get all clips
+    def get_all_clips_recursive(folder):
+        clips = []
+        
+        # Add clips from current folder
+        folder_clips = folder.GetClipList()
+        if folder_clips:
+            clips.extend(folder_clips)
+            
+        # Recurse into subfolders
+        subfolders = folder.GetSubFolderList()
+        if subfolders:
+            for sub in subfolders:
+                clips.extend(get_all_clips_recursive(sub))
+                
+        return clips
+
+    all_clips = get_all_clips_recursive(root_folder)
+    
+    if not all_clips:
+        return [{"info": "No clips found in the project"}]
     
     # Return a simplified list with basic clip info
     result = []
-    for clip in clips:
+    for clip in all_clips:
+        # Check if clip is valid
+        if not clip: continue
+
+        try:
+            name = clip.GetName()
+        except:
+            name = "Unknown"
+            
+        try:
+            duration = clip.GetDuration()
+        except:
+            duration = 0
+            
+        try:
+            fps = clip.GetClipProperty("FPS")
+        except:
+            fps = ""
+
         result.append({
-            "name": clip.GetName(),
-            "duration": clip.GetDuration(),
-            "fps": clip.GetClipProperty("FPS")
+            "name": name,
+            "duration": duration,
+            "fps": fps
         })
     
     return result
