@@ -1595,8 +1595,59 @@ def set_optimized_media_mode(mode: str) -> str:
     Args:
         mode: Optimized media mode to set. Options: 'auto', 'on', 'off'
     """
+    return set_optimized_media_mode_func(resolve, mode)
+
+@mcp.tool()
+def get_project_setting(setting_name: str) -> str:
+    """Get a specific project setting value.
+    
+    Args:
+        setting_name: The name of the setting (e.g., 'timelineResolutionWidth')
+    """
     if resolve is None:
         return "Error: Not connected to DaVinci Resolve"
+    
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+    
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+    
+    try:
+        value = current_project.GetSetting(setting_name)
+        return str(value)
+    except Exception as e:
+        return f"Error getting setting '{setting_name}': {str(e)}"
+
+@mcp.tool()
+def set_project_setting(setting_name: str, setting_value: str) -> str:
+    """Set a specific project setting value.
+    
+    Args:
+        setting_name: The name of the setting (e.g., 'timelineResolutionWidth')
+        setting_value: The value to set
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+    
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+    
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+    
+    try:
+        result = current_project.SetSetting(setting_name, setting_value)
+        if result:
+            return f"Successfully set '{setting_name}' to '{setting_value}'"
+        else:
+            return f"Failed to set '{setting_name}'"
+    except Exception as e:
+        return f"Error setting '{setting_name}': {str(e)}"
     
     project_manager = resolve.GetProjectManager()
     if not project_manager:
