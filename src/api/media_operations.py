@@ -307,15 +307,23 @@ def add_clip_to_timeline(resolve, clip_name: str, timeline_name: str = None) -> 
     if not media_pool:
         return "Error: Failed to get Media Pool"
     
-    # Get all clips in root folder
+    # Helper to find clip recursively
+    def find_clip_recursive(folder, name):
+        clips = folder.GetClipList()
+        for clip in clips:
+            if clip.GetName() == name:
+                return clip
+        
+        sub_folders = folder.GetSubFolderList()
+        for sub_folder in sub_folders:
+            found = find_clip_recursive(sub_folder, name)
+            if found:
+                return found
+        return None
+
+    # Get root folder and search
     root_folder = media_pool.GetRootFolder()
-    clips = root_folder.GetClipList()
-    
-    target_clip = None
-    for clip in clips:
-        if clip.GetName() == clip_name:
-            target_clip = clip
-            break
+    target_clip = find_clip_recursive(root_folder, clip_name)
     
     if not target_clip:
         return f"Error: Clip '{clip_name}' not found in Media Pool"
@@ -926,4 +934,117 @@ def create_sub_clip(resolve, clip_name: str, start_frame: int, end_frame: int,
         except:
             pass
         
-        return f"Error creating subclip: {str(e)}" 
+        return f"Error creating subclip: {str(e)}"
+
+def create_bin_from_path(resolve, path: str) -> str:
+    """Create a bin structure from a path string (e.g. 'Scene1/Take1').
+    
+    Args:
+        resolve: The DaVinci Resolve instance
+        path: Path string separated by forward slashes
+        
+    Returns:
+        String indicating result
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+    
+    if not path:
+        return "Error: Path cannot be empty"
+        
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+    
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+    
+    media_pool = current_project.GetMediaPool()
+    if not media_pool:
+        return "Error: Failed to get Media Pool"
+    
+    # Get root
+    current_folder = media_pool.GetRootFolder()
+    if not current_folder:
+        return "Error: Failed to get Root Folder"
+    
+    # Split path
+    parts = [p for p in path.split('/') if p]
+    
+    for part in parts:
+        # Look for existing bin
+        found_folder = None
+        folders = current_folder.GetSubFolderList()
+        for folder in folders:
+            if folder.GetName() == part:
+                found_folder = folder
+                break
+        
+        if found_folder:
+            current_folder = found_folder
+        else:
+            # Create new bin
+            new_folder = media_pool.AddSubFolder(current_folder, part)
+            if new_folder:
+                current_folder = new_folder
+            else:
+                return f"Error: Failed to create bin '{part}' in path '{path}'"
+                
+    return f"Successfully ensured bin path '{path}'"
+
+def set_current_bin(resolve, path: str) -> str:
+    """Set the current media pool folder to the specified path.
+    
+    Args:
+        resolve: The DaVinci Resolve instance
+        path: Path string separated by forward slashes. 'master' or '/' for root.
+        
+    Returns:
+        String indicating result
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+        
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+    
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+    
+    media_pool = current_project.GetMediaPool()
+    if not media_pool:
+        return "Error: Failed to get Media Pool"
+    
+    root_folder = media_pool.GetRootFolder()
+    if not root_folder:
+        return "Error: Failed to get Root Folder"
+        
+    if not path or path.lower() in ["master", "/", ""]:
+        if media_pool.SetCurrentFolder(root_folder):
+            return "Successfully set current bin to Root"
+        else:
+            return "Error: Failed to set current bin to Root"
+            
+    # Navigate path
+    current_folder = root_folder
+    parts = [p for p in path.split('/') if p]
+    
+    for part in parts:
+        found = False
+        folders = current_folder.GetSubFolderList()
+        for folder in folders:
+            if folder.GetName() == part:
+                current_folder = folder
+                found = True
+                break
+        
+        if not found:
+            return f"Error: Bin '{part}' not found in path '{path}'"
+            
+    if media_pool.SetCurrentFolder(current_folder):
+        return f"Successfully set current bin to '{path}'"
+    else:
+        return f"Error: Failed to set current bin to '{path}'" 

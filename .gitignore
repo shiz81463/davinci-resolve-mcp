@@ -78,6 +78,12 @@ coverage.xml
 .AppleDouble
 .LSOverride
 
+# Large binary installer files
+*.pkg
+*.dmg
+*.exe
+*.msi
+
 # Environments
 .env
 .venv

@@ -1,1 +1,1 @@
-/Users/samuelgursky/davinci-resolve-mcp-20250401-02/davinci-resolve-mcp/scripts/run-now.sh
+scripts/run-now.sh

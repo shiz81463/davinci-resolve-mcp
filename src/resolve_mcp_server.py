@@ -812,6 +812,26 @@ def get_media_pool_bin_contents(bin_name: str) -> List[Dict[str, Any]]:
     from api.media_operations import get_bin_contents as get_bin_contents_func
     return get_bin_contents_func(resolve, bin_name)
 
+@mcp.tool()
+def create_bin_path(path: str) -> str:
+    """Create a bin structure from a path string (e.g. 'Scene1/Take1').
+    
+    Args:
+        path: Path string separated by forward slashes
+    """
+    from api.media_operations import create_bin_from_path as create_path_func
+    return create_path_func(resolve, path)
+
+@mcp.tool()
+def set_media_pool_current_folder(path: str) -> str:
+    """Set the current media pool folder to the specified path.
+    
+    Args:
+        path: Path string separated by forward slashes. 'master' or '/' for root.
+    """
+    from api.media_operations import set_current_bin as set_bin_func
+    return set_bin_func(resolve, path)
+
 @mcp.resource("resolve://timeline-clips")
 def list_timeline_clips() -> List[Dict[str, Any]]:
     """List all clips in the current timeline."""
@@ -1415,6 +1435,43 @@ def get_all_media_pool_folders(media_pool):
     process_folder(root_folder)
     return folders
 
+@mcp.tool()
+def dump_media_pool() -> str:
+    """List all folders and clips in the current media pool (recursive debug dump)."""
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+    
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+    
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+    
+    media_pool = current_project.GetMediaPool()
+    if not media_pool:
+        return "Error: Failed to get Media Pool"
+    
+    root_folder = media_pool.GetRootFolder()
+    lines = []
+    
+    def walk(folder, prefix=""):
+        lines.append(f"{prefix}[D] {folder.GetName()}")
+        
+        # Subfolders
+        sub_folders = folder.GetSubFolderList()
+        for sub in sub_folders:
+            walk(sub, prefix + "  ")
+            
+        # Clips
+        clips = folder.GetClipList()
+        for clip in clips:
+            lines.append(f"{prefix}  [C] {clip.GetName()}")
+            
+    walk(root_folder)
+    return "\n".join(lines)
+
 # ------------------
 # Cache Management
 # ------------------
@@ -1614,6 +1671,65 @@ def set_proxy_quality(quality: str) -> str:
             return f"Failed to set proxy quality to '{quality}'"
     except Exception as e:
         return f"Error setting proxy quality: {str(e)}"
+
+@mcp.tool()
+def fusion_add_tool(tool_name: str, x: int = None, y: int = None) -> str:
+    """Add a tool (node) to the current Fusion composition.
+    
+    Args:
+        tool_name: The name of the tool to add (e.g. 'Background', 'TextPlus', 'Merge')
+        x: Optional X coordinate for the node
+        y: Optional Y coordinate for the node
+    """
+    from api.fusion_operations import add_fusion_tool as add_tool_func
+    return add_tool_func(resolve, tool_name, x, y)
+
+@mcp.tool()
+def fusion_set_input(tool_name: str, input_id: str, value: Any) -> str:
+    """Set an input value for a specific Fusion tool.
+    
+    Args:
+        tool_name: The name (ID) of the tool (e.g. 'Background1')
+        input_id: The ID of the input to set (e.g. 'TopLeftRed', 'Size')
+        value: The value to set
+    """
+    from api.fusion_operations import set_tool_input as set_input_func
+    return set_input_func(resolve, tool_name, input_id, value)
+
+@mcp.tool()
+def fusion_set_expression(tool_name: str, input_id: str, expression: str) -> str:
+    """Set an expression for a specific Fusion tool input.
+    
+    Args:
+        tool_name: The name (ID) of the tool
+        input_id: The ID of the input to animate
+        expression: The Lua expression string
+    """
+    from api.fusion_operations import set_tool_expression as set_expr_func
+    return set_expr_func(resolve, tool_name, input_id, expression)
+
+@mcp.tool()
+def fusion_connect(out_tool: str, in_tool: str, in_id: str = "Input", out_id: str = "Output") -> str:
+    """Connect an output of one Fusion tool to an input of another.
+    
+    Args:
+        out_tool: Name of tool providing output
+        in_tool: Name of tool receiving input
+        in_id: ID of the input (e.g. 'Input', 'Background', 'Foreground', 'EffectMask')
+        out_id: ID of the output (default: 'Output')
+    """
+    from api.fusion_operations import connect_tools as connect_func
+    return connect_func(resolve, out_tool, out_id, in_tool, in_id)
+
+@mcp.tool()
+def import_fusion_comp(path: str) -> str:
+    """Import a Fusion composition file (.comp).
+    
+    Args:
+        path: Absolute path to the .comp file
+    """
+    from api.fusion_operations import import_fusion_comp as import_comp_func
+    return import_comp_func(resolve, path)
 
 @mcp.tool()
 def set_cache_path(path_type: str, path: str) -> str:
